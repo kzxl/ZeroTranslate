@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using XTranslate.Helpers;
 
 namespace XTranslate.Native;
 
@@ -55,10 +56,19 @@ internal static partial class NativeMethods
     public static partial short GetAsyncKeyState(int vKey);
 
     [LibraryImport("user32.dll")]
-    public static partial uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+    public static partial uint MapVirtualKey(uint uCode, uint uMapType);
 
+    [LibraryImport("user32.dll")]
+    public static partial uint SendInput(uint nInputs, [In] INPUT[] pInputs, int cbSize);
+
+    public const int INPUT_MOUSE = 0;
     public const int INPUT_KEYBOARD = 1;
+    public const int INPUT_HARDWARE = 2;
+
+    public const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
     public const uint KEYEVENTF_KEYUP = 0x0002;
+    public const uint KEYEVENTF_SCANCODE = 0x0008;
+
     public const ushort VK_SHIFT = 0x10;
     public const ushort VK_CONTROL = 0x11;
     public const ushort VK_MENU = 0x12; // Alt
@@ -67,17 +77,14 @@ internal static partial class NativeMethods
     public const ushort VK_C = 0x43;
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct INPUT
+    public struct MOUSEINPUT
     {
-        public int Type;
-        public INPUTUNION Union;
-    }
-
-    [StructLayout(LayoutKind.Explicit)]
-    public struct INPUTUNION
-    {
-        [FieldOffset(0)]
-        public KEYBDINPUT Keyboard;
+        public int Dx;
+        public int Dy;
+        public uint MouseData;
+        public uint Flags;
+        public uint Time;
+        public IntPtr ExtraInfo;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -88,6 +95,34 @@ internal static partial class NativeMethods
         public uint Flags;
         public uint Time;
         public IntPtr ExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct HARDWAREINPUT
+    {
+        public uint Msg;
+        public ushort ParamL;
+        public ushort ParamH;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct INPUTUNION
+    {
+        [FieldOffset(0)]
+        public MOUSEINPUT Mouse;
+
+        [FieldOffset(0)]
+        public KEYBDINPUT Keyboard;
+
+        [FieldOffset(0)]
+        public HARDWAREINPUT Hardware;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct INPUT
+    {
+        public int Type;
+        public INPUTUNION Union;
     }
 
     // --- Window Messages ---
@@ -126,7 +161,9 @@ internal static partial class NativeMethods
     /// </summary>
     public static void SendCtrlC()
     {
-        // Release modifier keys that might be held (from hotkey)
+        int inputSize = Marshal.SizeOf<INPUT>();
+
+        // 1. Release modifier keys that might be physically held (from hotkey)
         var releaseInputs = new List<INPUT>();
         if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0)
             releaseInputs.Add(MakeKeyInput(VK_CONTROL, KEYEVENTF_KEYUP));
@@ -137,12 +174,12 @@ internal static partial class NativeMethods
 
         if (releaseInputs.Count > 0)
         {
-            Log.Debug($"[SendCtrlC] Releasing {releaseInputs.Count} held modifier(s)");
-            SendInput((uint)releaseInputs.Count, releaseInputs.ToArray(), Marshal.SizeOf<INPUT>());
-            Thread.Sleep(50);
+            uint relSent = SendInput((uint)releaseInputs.Count, releaseInputs.ToArray(), inputSize);
+            Log.Debug($"[SendCtrlC] Released {relSent}/{releaseInputs.Count} modifier(s)");
+            Thread.Sleep(25);
         }
 
-        // Send Ctrl+C
+        // 2. Send Ctrl+C
         var inputs = new INPUT[]
         {
             MakeKeyInput(VK_CONTROL, 0),
@@ -151,8 +188,8 @@ internal static partial class NativeMethods
             MakeKeyInput(VK_CONTROL, KEYEVENTF_KEYUP),
         };
 
-        var sent = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
-        Log.Debug($"[SendCtrlC] SendInput returned {sent} (expected 4)");
+        uint sent = SendInput((uint)inputs.Length, inputs, inputSize);
+        Log.Debug($"[SendCtrlC] SendInput sent {sent}/{inputs.Length} keys (sizeof(INPUT)={inputSize})");
     }
 
     private static INPUT MakeKeyInput(ushort vk, uint flags) => new()
@@ -160,7 +197,14 @@ internal static partial class NativeMethods
         Type = INPUT_KEYBOARD,
         Union = new INPUTUNION
         {
-            Keyboard = new KEYBDINPUT { Vk = vk, Flags = flags }
+            Keyboard = new KEYBDINPUT
+            {
+                Vk = vk,
+                Scan = (ushort)MapVirtualKey(vk, 0),
+                Flags = flags,
+                Time = 0,
+                ExtraInfo = IntPtr.Zero
+            }
         }
     };
 }
