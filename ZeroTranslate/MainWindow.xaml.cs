@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -21,6 +21,7 @@ public partial class MainWindow : Window
 
     // Debounce timer for instant (as-you-type) translation.
     private readonly DispatcherTimer _instantTimer;
+    private SubtitleHudWindow? _hudWindow;
 
     public MainWindow(MainViewModel viewModel)
     {
@@ -50,6 +51,36 @@ public partial class MainWindow : Window
             _instantTimer.Stop();
             if (!string.IsNullOrWhiteSpace(ViewModel.SourceText))
                 _instantTimer.Start();
+        }
+
+        // Live stream translation to floating HUD if active
+        if (e.PropertyName == nameof(MainViewModel.TranslatedText) && _hudWindow != null && _hudWindow.IsVisible)
+        {
+            _hudWindow.UpdateSubtitle(ViewModel.SourceText, ViewModel.TranslatedText);
+        }
+    }
+
+    private void HudToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_hudWindow == null || !_hudWindow.IsLoaded)
+        {
+            _hudWindow = new SubtitleHudWindow();
+            _hudWindow.Closed += (_, _) => _hudWindow = null;
+        }
+
+        if (_hudWindow.IsVisible)
+        {
+            _hudWindow.Hide();
+            ViewModel.StatusText = "Đã ẩn HUD phụ đề.";
+        }
+        else
+        {
+            _hudWindow.Show();
+            if (!string.IsNullOrWhiteSpace(ViewModel.TranslatedText))
+            {
+                _hudWindow.UpdateSubtitle(ViewModel.SourceText, ViewModel.TranslatedText);
+            }
+            ViewModel.StatusText = "Đã kích hoạt HUD phụ đề nổi màn hình.";
         }
     }
 

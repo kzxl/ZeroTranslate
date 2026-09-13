@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Input;
 using ZeroTranslate.Core;
 using ZeroTranslate.Core.Interfaces;
@@ -47,6 +47,12 @@ public partial class SettingsWindow : Window
         cboEngine.ItemsSource = _engineRegistry.AvailableEngines;
         cboEngine.SelectedItem = _engineRegistry.ActiveEngineName;
         chkEngineFallback.IsChecked = settings.EnableEngineFallback;
+        txtLocalLlmEndpoint.Text = string.IsNullOrWhiteSpace(settings.LocalLlmEndpoint)
+            ? "http://localhost:11434/api/generate"
+            : settings.LocalLlmEndpoint;
+        txtLocalLlmModel.Text = string.IsNullOrWhiteSpace(settings.LocalLlmModel)
+            ? "qwen2.5:latest"
+            : settings.LocalLlmModel;
 
         // OCR
         chkOcrEnabled.IsChecked = settings.OcrEnabled;
@@ -144,6 +150,16 @@ public partial class SettingsWindow : Window
             _engineRegistry.ActiveEngineName = engineName;
 
         settings.EnableEngineFallback = chkEngineFallback.IsChecked ?? true;
+
+        settings.LocalLlmEndpoint = txtLocalLlmEndpoint.Text.Trim();
+        settings.LocalLlmModel = txtLocalLlmModel.Text.Trim();
+
+        // Update active Local LLM instance in registry if present
+        if (_engineRegistry.GetAllEngines().OfType<LocalLlmTranslateEngine>().FirstOrDefault() is { } llmEngine)
+        {
+            llmEngine.Endpoint = settings.LocalLlmEndpoint;
+            llmEngine.ModelName = settings.LocalLlmModel;
+        }
 
         _settingsService.Save();
         DialogResult = true;

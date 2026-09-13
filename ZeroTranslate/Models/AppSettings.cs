@@ -1,4 +1,4 @@
-﻿using System.Windows.Forms;
+using System.Windows.Forms;
 
 namespace ZeroTranslate.Models;
 
@@ -35,10 +35,11 @@ public class AppSettings
     public string ActiveEngineName { get; set; } = "Google Translate";
 
     /// <summary>
-    /// When the active engine fails, automatically retry with the other
-    /// registered engines (QTranslate-style multi-service reliability).
-    /// </summary>
     public bool EnableEngineFallback { get; set; } = true;
+
+    // --- Local LLM (Ollama / LM Studio) ---
+    public string LocalLlmEndpoint { get; set; } = "http://localhost:11434/api/generate";
+    public string LocalLlmModel { get; set; } = "qwen2.5:latest";
 
     // --- OCR ---
     public bool OcrEnabled { get; set; } = true;
