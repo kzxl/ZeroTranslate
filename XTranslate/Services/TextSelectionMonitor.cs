@@ -7,34 +7,35 @@ using XTranslate.Native;
 namespace XTranslate.Services;
 
 /// <summary>
-/// Monitors mouse activity to detect text selection.
-/// When mouse-up after drag detected, shows floating icon at cursor position.
-/// Does NOT capture clipboard — that happens only when user clicks the icon.
+/// Monitors mouse activity to detect text selection (drag-selection or double-click).
+/// When text selection is detected, fires PossibleSelection to show floating icon.
 /// </summary>
 public class TextSelectionMonitor : IDisposable
 {
-    /// <summary>Fired when user potentially selected text (mouse up after drag).</summary>
+    /// <summary>Fired when user potentially selected text (mouse up after drag or double-click).</summary>
     public event Action<int, int>? PossibleSelection; // cursorX, cursorY
 
-    /// <summary>Fired when selection is likely cleared (click without drag).</summary>
+    /// <summary>Fired when selection is likely cleared (single click without drag).</summary>
     public event Action? SelectionCleared;
 
     private IntPtr _mouseHookId = IntPtr.Zero;
     private NativeMethods.LowLevelMouseProc? _mouseProc;
     private bool _isMouseDown;
     private NativeMethods.POINT _mouseDownPoint;
+    private NativeMethods.POINT _lastUpPoint;
+    private long _lastUpTimestamp;
     private readonly DispatcherTimer _debounceTimer;
     private bool _disposed;
 
     public bool IsEnabled { get; set; } = true;
 
-    private const int MinDragDistance = 10; // pixels — must drag at least this far
+    private const int MinDragDistance = 8; // pixels — drag threshold
 
     public TextSelectionMonitor()
     {
         _debounceTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(200)
+            Interval = TimeSpan.FromMilliseconds(150)
         };
         _debounceTimer.Tick += OnDebounceTimerTick;
     }
@@ -59,11 +60,9 @@ public class TextSelectionMonitor : IDisposable
 
     private IntPtr SetMouseHook(NativeMethods.LowLevelMouseProc proc)
     {
-        using var process = Process.GetCurrentProcess();
-        using var module = process.MainModule!;
         return NativeMethods.SetWindowsHookEx(
             NativeMethods.WH_MOUSE_LL, proc,
-            NativeMethods.GetModuleHandle(module.ModuleName), 0);
+            NativeMethods.GetModuleHandle(null!), 0);
     }
 
     private IntPtr MouseHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
@@ -82,16 +81,26 @@ public class TextSelectionMonitor : IDisposable
             else if (msg == NativeMethods.WM_LBUTTONUP && _isMouseDown)
             {
                 _isMouseDown = false;
+                long now = Stopwatch.GetTimestamp();
 
-                // Check if mouse moved enough (was it a drag or just a click?)
                 if (NativeMethods.GetCursorPos(out var upPoint))
                 {
                     int dx = Math.Abs(upPoint.X - _mouseDownPoint.X);
                     int dy = Math.Abs(upPoint.Y - _mouseDownPoint.Y);
 
-                    if (dx > MinDragDistance || dy > MinDragDistance)
+                    // Case 1: Drag selection (mouse moved past drag threshold)
+                    bool isDrag = dx > MinDragDistance || dy > MinDragDistance;
+
+                    // Case 2: Double-click or triple-click selection
+                    double elapsedMs = (now - _lastUpTimestamp) * 1000.0 / Stopwatch.Frequency;
+                    int doubleClickDist = Math.Abs(upPoint.X - _lastUpPoint.X) + Math.Abs(upPoint.Y - _lastUpPoint.Y);
+                    bool isDoubleClick = elapsedMs < 500 && doubleClickDist < 8;
+
+                    _lastUpTimestamp = now;
+                    _lastUpPoint = upPoint;
+
+                    if (isDrag || isDoubleClick)
                     {
-                        // Likely text selection — debounce
                         _debounceTimer.Stop();
                         _debounceTimer.Start();
                     }
@@ -110,7 +119,7 @@ public class TextSelectionMonitor : IDisposable
 
         if (NativeMethods.GetCursorPos(out var point))
         {
-            Log.Debug($"Possible selection at ({point.X}, {point.Y})");
+            Log.Debug($"[TextSelectionMonitor] Possible selection at ({point.X}, {point.Y})");
             PossibleSelection?.Invoke(point.X, point.Y);
         }
     }

@@ -1,5 +1,6 @@
 using System.Windows;
 using XTranslate.Core.Interfaces;
+using XTranslate.Helpers;
 using XTranslate.Native;
 
 namespace XTranslate.Services;
@@ -12,10 +13,8 @@ namespace XTranslate.Services;
 /// </summary>
 public class ClipboardService : IClipboardService
 {
-    // Tunables: total wait is bounded by MaxWaitMs; we poll every PollIntervalMs.
-    private const int MaxWaitMs = 400;
-    private const int PollIntervalMs = 15;
-    private const int SettleDelayMs = 10;
+    private const int MaxWaitMs = 500;
+    private const int PollIntervalMs = 20;
 
     /// <summary>
     /// Captures the currently selected text by simulating Ctrl+C.
@@ -26,73 +25,74 @@ public class ClipboardService : IClipboardService
 
         try
         {
-            // Snapshot original clipboard text and the current sequence number,
-            // then clear, in a single dispatcher hop (clipboard APIs need STA).
-            var (original, seqBefore) = await dispatcher.InvokeAsync(() =>
-            {
-                string? orig = null;
-                try { orig = Clipboard.GetText(); }
-                catch { orig = null; }
+            // 1. Snapshot original clipboard and clear it.
+            // Capture sequence number AFTER Clear so any new copy bumps it.
+            string? original = null;
+            uint seqBefore = 0;
 
-                uint seq = NativeMethods.GetClipboardSequenceNumber();
+            await dispatcher.InvokeAsync(() =>
+            {
+                try { original = Clipboard.GetText(); }
+                catch { original = null; }
 
                 try { Clipboard.Clear(); }
                 catch { /* ignore */ }
 
-                return (orig, seq);
+                seqBefore = NativeMethods.GetClipboardSequenceNumber();
             });
 
-            // Let the Clear settle, then simulate Ctrl+C to the foreground window.
-            // Run on a background thread: SendCtrlC may Thread.Sleep while releasing
-            // held modifier keys, and we must not block the UI thread.
-            await Task.Delay(SettleDelayMs);
+            // 2. Settle and simulate Ctrl+C to foreground window.
+            await Task.Delay(20);
             await Task.Run(NativeMethods.SendCtrlC);
 
-            // Poll until the clipboard sequence number advances past the snapshot
-            // (the Clear already bumped it once, so wait for a further change),
-            // or until we hit the max wait.
+            // 3. Poll until the clipboard sequence number advances past the clear baseline.
             string? text = null;
             int waited = 0;
+
             while (waited < MaxWaitMs)
             {
                 await Task.Delay(PollIntervalMs);
                 waited += PollIntervalMs;
 
-                var (changed, current) = await dispatcher.InvokeAsync(() =>
+                var (hasNewText, current) = await dispatcher.InvokeAsync(() =>
                 {
-                    uint seq = NativeMethods.GetClipboardSequenceNumber();
-                    if (seq == seqBefore)
-                        return (false, (string?)null);
-
-                    string? t = null;
-                    try { t = Clipboard.GetText(); }
-                    catch { t = null; }
-                    return (true, t);
+                    uint seqCurrent = NativeMethods.GetClipboardSequenceNumber();
+                    if (seqCurrent != seqBefore)
+                    {
+                        try
+                        {
+                            if (Clipboard.ContainsText())
+                            {
+                                var t = Clipboard.GetText();
+                                return (!string.IsNullOrWhiteSpace(t), t);
+                            }
+                        }
+                        catch
+                        {
+                            // Clipboard might be locked by source app writing to it; retry on next poll tick
+                        }
+                    }
+                    return (false, (string?)null);
                 });
 
-                if (changed)
+                if (hasNewText && !string.IsNullOrWhiteSpace(current))
                 {
                     text = current;
-                    // A non-empty result means the copy succeeded; stop early.
-                    if (!string.IsNullOrEmpty(text))
-                        break;
+                    break;
                 }
             }
 
-            Log.Debug(() => $"[Clipboard] Got ({waited}ms): '{Truncate(text, 50)}'");
+            Log.Debug($"[Clipboard] Captured text in {waited}ms: '{Truncate(text, 50)}'");
 
-            // Restore original clipboard content.
-            await dispatcher.InvokeAsync(() =>
+            // 4. Restore original clipboard content if we have something to restore.
+            if (!string.IsNullOrEmpty(original))
             {
-                try
+                await dispatcher.InvokeAsync(() =>
                 {
-                    if (!string.IsNullOrEmpty(original))
-                        Clipboard.SetText(original);
-                    else
-                        Clipboard.Clear();
-                }
-                catch { /* ignore */ }
-            });
+                    try { Clipboard.SetText(original); }
+                    catch { /* ignore */ }
+                });
+            }
 
             return text;
         }
