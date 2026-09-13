@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using ZeroTranslate.Core.Interfaces;
 using ZeroTranslate.Services;
 using ZeroTranslate.ViewModels;
@@ -27,6 +27,7 @@ public static class ServiceCollectionExtensions
             registry.Register(new GoogleTranslateEngine());
             registry.Register(new MyMemoryTranslateEngine());
             registry.Register(new LingvaTranslateEngine());
+            registry.Register(new LocalLlmTranslateEngine());
             return registry;
         });
         services.AddSingleton<TranslationService>();
