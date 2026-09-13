@@ -1,0 +1,46 @@
+﻿<Window x:Class="ZeroTranslate.Views.ScreenCaptureOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Screen Capture"
+        WindowStyle="None" AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True" ShowInTaskbar="False"
+        WindowState="Maximized"
+        Cursor="Cross"
+        KeyDown="Window_KeyDown">
+
+    <Grid>
+        <!-- Screenshot background -->
+        <Image x:Name="ScreenImage" Stretch="Fill" />
+
+        <!-- Dark overlay -->
+        <Canvas x:Name="OverlayCanvas"
+                Background="#60000000"
+                MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
+                MouseMove="Canvas_MouseMove"
+                MouseLeftButtonUp="Canvas_MouseLeftButtonUp">
+
+            <!-- Selection rectangle -->
+            <Border x:Name="SelectionBorder"
+                    BorderBrush="#FF818CF8" BorderThickness="2"
+                    Background="#20818CF8"
+                    CornerRadius="2"
+                    Visibility="Collapsed" />
+        </Canvas>
+
+        <!-- Instruction tooltip -->
+        <Border HorizontalAlignment="Center" VerticalAlignment="Top"
+                Margin="0,24,0,0" Padding="16,8" CornerRadius="8"
+                Background="#DD161822" BorderBrush="#FF334155" BorderThickness="1">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.4" Color="Black" />
+            </Border.Effect>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="📷" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBlock Text="Kéo chuột để chọn vùng chụp  ·  " FontSize="12" Foreground="#FFF1F5F9" VerticalAlignment="Center" />
+                <TextBlock Text="Esc" FontSize="11" FontWeight="Bold" Foreground="#FF818CF8" VerticalAlignment="Center" />
+                <TextBlock Text=" để hủy" FontSize="12" Foreground="#FF94A3B8" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

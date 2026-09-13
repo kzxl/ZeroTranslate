@@ -1,7 +1,7 @@
-using XTranslate.Helpers;
+﻿using ZeroTranslate.Helpers;
 using Xunit;
 
-namespace XTranslate.Tests;
+namespace ZeroTranslate.Tests;
 
 public class LanguageDatabaseTests
 {

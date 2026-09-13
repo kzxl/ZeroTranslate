@@ -1,10 +1,10 @@
 $ErrorActionPreference = "Stop"
 
-$ProjectDir = "XTranslate"
-$ProjectFile = "$ProjectDir\XTranslate.csproj"
+$ProjectDir = "ZeroTranslate"
+$ProjectFile = "$ProjectDir\ZeroTranslate.csproj"
 $OutputBase = "PublishOutput"
 
-Write-Host "XTranslate Build Optimizations Script" -ForegroundColor Cyan
+Write-Host "ZeroTranslate Build Optimizations Script" -ForegroundColor Cyan
 Write-Host "====================================="
 
 # 1. Clean previous build
