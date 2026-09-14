@@ -1,9 +1,11 @@
 # 🌌 ZeroTranslate — Instant On-Screen Translation Suite
 
-[![Platform](https://img.shields.io/badge/.NET-8.0%20WPF-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
-[![Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat-square&logo=windows)](https://dotnet.microsoft.com/)
+[![Type: Desktop Application](https://img.shields.io/badge/Type-Desktop%20Application-007ACC?style=flat-square&logo=windows)](https://github.com/kzxl/ZeroTranslate)
+[![Ecosystem](https://img.shields.io/badge/Ecosystem-ZeroUniverse-8A2BE2?style=flat-square)](https://github.com/kzxl/ZeroUniverse)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=flat-square&logo=windows)](https://dotnet.microsoft.com/)
+[![Distribution: Standalone Single-File](https://img.shields.io/badge/Distribution-Standalone%20Single--File-2ea44f?style=flat-square)](https://github.com/kzxl/ZeroTranslate)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-[![Ecosystem](https://img.shields.io/badge/Ecosystem-ZeroUniverse-6366F1?style=flat-square)](https://github.com/kzxl/ZeroUniverse)
+
 
 **ZeroTranslate** is a lightweight, blazing-fast desktop translation tool for Windows. Designed with C# WPF and .NET 8, it provides an exceptionally smooth, distraction-free translation experience directly at your cursor. Part of the sovereign **ZeroUniverse** application suite, it guarantees low resource overhead and instantaneous response times.
 
